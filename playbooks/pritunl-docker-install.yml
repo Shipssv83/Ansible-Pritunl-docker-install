@@ -1,0 +1,39 @@
+---
+- name: include server install play
+  ansible.builtin.import_playbook: server-install.yml
+
+- name: include docker install play
+  ansible.builtin.import_playbook: docker-install.yml
+
+- name: pritunl docker install
+  become: true
+  hosts: '{{ host }}'
+  vars:
+    timezone: 'Europe/Warsaw'
+    pritunl_docker_version: 'latest'
+    pritunl_vpn_port: '14830'
+    wg_vpn_port: '51820'
+    pritunl_web: '443'
+
+  roles:
+  - roles/pritunl-docker-install
+
+  tasks:
+  - name: 'configure ufw add pritunl {{ pritunl_vpn_port }}, wg {{ wg_vpn_port }} vpn port '
+    community.general.system.ufw:
+      rule: allow
+      port: '{{ item }}'
+      route: true
+      proto: udp
+      comment: allow pritunl, wg vpn port
+    loop: 
+      - '{{ pritunl_vpn_port }}'
+      - '{{ wg_vpn_port }}'
+
+  - name: 'configure ufw port https {{ https_port }} allowed ip'
+    community.general.system.ufw:
+      rule: allow
+      route: true
+      port: '{{ https_port.port }}'
+      proto: tcp
+      comment: allow web port monitoring
